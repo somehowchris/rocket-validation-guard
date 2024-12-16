@@ -33,7 +33,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - uses: Swatinem/rust-cache@v2.7.3
+      - uses: Swatinem/rust-cache@v2.7.5
 
       - name: Test Dev
         run: cargo test --all-features --workspace
