@@ -301,7 +301,7 @@ impl<'r, T: Validate + FromForm<'r>> FromForm<'r> for Validated<T> {
 impl<'r, T: schemars::JsonSchema> FromData<'r> for Validated<Json<T>> {
     type Error = ();
 
-    async fn from_data<'r>(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
+    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
         let json_outcome = Json::<T>::from_data(req, data).await;
 
         match json_outcome {
