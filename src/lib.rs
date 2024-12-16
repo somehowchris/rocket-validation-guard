@@ -298,10 +298,13 @@ impl<'r, T: Validate + FromForm<'r>> FromForm<'r> for Validated<T> {
 }
 
 #[rocket::async_trait]
-impl<'r, T: schemars::JsonSchema> FromData<'r> for Validated<Json<T>> {
+impl<'r, T> FromData<'r> for Validated<Json<T>>
+where
+    T: 'r + JsonSchema,
+{
     type Error = ();
 
-    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
+    async fn from_data(req: &'r rocket::request::Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
         let json_outcome = Json::<T>::from_data(req, data).await;
 
         match json_outcome {
