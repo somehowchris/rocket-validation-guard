@@ -12,6 +12,7 @@ description = "Rocket Guards to support validation using validator"
 
 [features]
 rocket_okapi = []
+parser_errors = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

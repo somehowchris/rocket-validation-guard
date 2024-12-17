@@ -189,6 +189,7 @@ impl<'r, D: Validate + rocket::serde::Deserialize<'r>> FromData<'r> for Validate
             Outcome::Error((status, err)) => {
                 let mut errors = ValidationErrors::new();
                 
+                #[cfg(feature = "parser_errors")]
                 errors.add("Parser", ValidationError::new("Error").with_message(Cow::from(err.to_string())));
                 
                 req.local_cache(|| CachedValidationErrors(Some(errors)));
