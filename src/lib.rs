@@ -92,6 +92,7 @@ use rocket::{
     serde::{json::Json, Serialize},
 };
 use std::fmt::Debug;
+use rocket::form::Form;
 use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::okapi::openapi3::RequestBody;
 use rocket_okapi::request::OpenApiFromData;
@@ -299,5 +300,43 @@ where
 {
     fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<RequestBody> {
         Json::<T>::request_body(gen)
+    }
+}
+
+#[rocket::async_trait]
+impl<'r, T> FromData<'r> for Validated<Form<T>>
+where
+    T: FromForm<'r> + Validate,
+{
+    type Error = form::Errors<'r>;
+
+    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
+        let form = match Form::<T>::from_data(req, data).await {
+            DataOutcome::Success(form) => form,
+            DataOutcome::Error(e) => return DataOutcome::Error(e),
+            DataOutcome::Forward(f) => return DataOutcome::Forward(f),
+        };
+
+        let inner = form.into_inner();
+        if let Err(_validation_errors) = inner.validate() {
+            return DataOutcome::Error((
+                Status::UnprocessableEntity,
+                form::Errors::from(vec![
+                    form::Error::validation("Validation failed")
+                ])
+            ));
+        }
+
+        DataOutcome::Success(Validated(Form::from(inner)))
+    }
+}
+
+#[rocket::async_trait]
+impl<'r, T> OpenApiFromData<'r> for Validated<Form<T>>
+where
+    T: schemars::JsonSchema + FromForm<'r> + 'static + validator::Validate,
+{
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<RequestBody> {
+        Form::<T>::request_body(gen)
     }
 }
