@@ -92,14 +92,6 @@ use rocket::{
     serde::{json::Json, Serialize},
 };
 use std::fmt::Debug;
-use rocket::form::{Form, Options};
-use rocket::yansi::Paint;
-use rocket_okapi::gen::OpenApiGenerator;
-use rocket_okapi::okapi::Map;
-use rocket_okapi::okapi::openapi3::{MediaType, Parameter, ParameterValue, RequestBody};
-use rocket_okapi::OpenApiError;
-use rocket_okapi::request::{OpenApiFromData, OpenApiFromForm};
-use schemars::JsonSchema;
 pub use validator::{Validate, ValidationErrors};
 
 ///  Struct used for Request Guards
@@ -294,101 +286,5 @@ impl<'r, T: Validate + FromForm<'r>> FromForm<'r> for Validated<T> {
                     .into()),
             },
         }
-    }
-}
-
-#[rocket::async_trait]
-impl<'r, T> FromData<'r> for Validated<Json<T>>
-where
-    T: 'r + JsonSchema,
-{
-    type Error = ();
-
-    async fn from_data(req: &'r rocket::request::Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
-        let json_outcome = Json::<T>::from_data(req, data).await;
-
-        match json_outcome {
-            Outcome::Success(json) => {
-                let validated = Validated(json);
-                match validated.0.validate() {
-                    Ok(_) => Outcome::Success(validated),
-                    Err(_) => Outcome::Error((Status::UnprocessableEntity, ())),
-                }
-            }
-            Outcome::Error((status, _)) => Outcome::Error((status, ())),
-            Outcome::Forward(_) => Outcome::Forward(()),
-        }
-    }
-}
-
-impl<'r, T> OpenApiFromData<'r> for Validated<Json<T>>
-where
-    T: JsonSchema + 'r,
-{
-    fn request_body(gen: &mut OpenApiGenerator) -> Result<RequestBody, OpenApiError> {
-        let schema = gen.json_schema::<T>();
-        Ok(RequestBody {
-            content: {
-                let mut map = Map::new();
-                map.insert(
-                    "application/json".to_owned(),
-                    MediaType {
-                        schema: Some(schema),
-                        ..Default::default()
-                    },
-                );
-                map
-            },
-            required: true,
-            ..Default::default()
-        })
-    }
-}
-
-#[rocket::async_trait]
-impl<'r, T> FromForm<'r> for Validated<Form<T>>
-where
-    T: 'r + JsonSchema,
-{
-    type Context = form::FromFieldContext<'r, T>;
-
-    fn init(opts: Options) -> Self::Context {
-        T::init(opts)
-    }
-
-    fn push_value(ctx: &mut Self::Context, field: ValueField<'r>) {
-        T::push_value(ctx, field)
-    }
-
-    async fn push_data(ctx: &mut Self::Context, field: DataField<'r, '_>) {
-        T::push_data(ctx, field).await
-    }
-
-    fn finalize(ctx: Self::Context) -> form::Result<'r, Self> {
-        let form = ctx.finalize()?;
-        let validated = Validated(form);
-        match validated.0.validate() {
-            Ok(_) => Ok(validated),
-            Err(_) => Err(form::Error::validation("Validation failed").into()),
-        }
-    }
-}
-
-impl<'r, T> OpenApiFromForm<'r> for Validated<Form<T>>
-where
-    T: JsonSchema + 'r,
-{
-    fn form_multi_parameter(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<Vec<Parameter>> {
-        let schema = gen.json_schema::<T>();
-        Ok(vec![Parameter {
-            name,
-            location: "formData".to_owned(),
-            required,
-            deprecated: false,
-            allow_empty_value: false,
-            description: None,
-            value: ParameterValue::Schema { schema, ..Default::default() },
-            extensions: rocket_okapi::okapi::openapi3::Object::default(),
-        }])
     }
 }
