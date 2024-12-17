@@ -21,6 +21,7 @@ path = "src/lib.rs"
 [dependencies]
 rocket = { version = "0.5.1", default-features = false, features = [
     "json",
+    "serde_json"
 ] }
 validator = { version = "0.19.0", features = ["derive"] }
 schemars = "0.8.21"
