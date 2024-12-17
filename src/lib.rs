@@ -308,26 +308,25 @@ impl<'r, T> FromData<'r> for Validated<Form<T>>
 where
     T: FromForm<'r> + Validate,
 {
-    type Error = form::Errors<'r>;
+    type Error = Result<ValidationErrors, form::Errors<'r>>;
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
-        let form = match Form::<T>::from_data(req, data).await {
-            DataOutcome::Success(form) => form,
-            DataOutcome::Error(e) => return DataOutcome::Error(e),
-            DataOutcome::Forward(f) => return DataOutcome::Forward(f),
-        };
+        let data_outcome = <Form<T> as FromData<'r>>::from_data(req, data).await;
 
-        let inner = form.into_inner();
-        if let Err(_validation_errors) = inner.validate() {
-            return DataOutcome::Error((
-                Status::UnprocessableEntity,
-                form::Errors::from(vec![
-                    form::Error::validation("Validation failed")
-                ])
-            ));
+        match data_outcome {
+            DataOutcome::Error((status, err)) => DataOutcome::Error((status, Err(err))),
+            DataOutcome::Forward(f) => DataOutcome::Forward(f),
+            DataOutcome::Success(form) => {
+                let inner = form.into_inner();
+                match inner.validate() {
+                    Ok(_) => DataOutcome::Success(Validated(Form::from(inner))),
+                    Err(err) => {
+                        req.local_cache(|| CachedValidationErrors(Some(err.to_owned())));
+                        DataOutcome::Error((Status::UnprocessableEntity, Ok(err)))
+                    }
+                }
+            }
         }
-
-        DataOutcome::Success(Validated(Form::from(inner)))
     }
 }
 
