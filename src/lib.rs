@@ -82,6 +82,7 @@ pub extern crate validator;
 #[macro_use]
 extern crate rocket;
 
+use std::borrow::Cow;
 use rocket::{
     data::{Data, FromData, Outcome as DataOutcome},
     form,
@@ -93,6 +94,7 @@ use rocket::{
 };
 use std::fmt::Debug;
 pub use validator::{Validate, ValidationErrors};
+use validator::ValidationError;
 
 ///  Struct used for Request Guards
 #[derive(Clone, Debug)]
@@ -184,7 +186,14 @@ impl<'r, D: Validate + rocket::serde::Deserialize<'r>> FromData<'r> for Validate
         let data_outcome = <Json<D> as FromData<'r>>::from_data(req, data).await;
 
         match data_outcome {
-            Outcome::Error((status, err)) => Outcome::Error((status, Err(err))),
+            Outcome::Error((status, err)) => {
+                let mut errors = ValidationErrors::new();
+                
+                errors.add("Parser", ValidationError::new("Error").with_message(Cow::from(err.to_string())));
+                
+                req.local_cache(|| CachedValidationErrors(Some(errors)));
+                Outcome::Error((status, Err(err)))
+            },
             Outcome::Forward(err) => Outcome::Forward(err),
             Outcome::Success(data) => match data.validate() {
                 Ok(_) => Outcome::Success(Validated(data)),
