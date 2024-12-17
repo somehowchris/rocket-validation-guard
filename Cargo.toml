@@ -10,6 +10,9 @@ categories = ["web-programming"]
 rust-version = "1.59.0"
 description = "Rocket Guards to support validation using validator"
 
+[features]
+rocket_okapi = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
