@@ -92,6 +92,9 @@ use rocket::{
     serde::{json::Json, Serialize},
 };
 use std::fmt::Debug;
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::RequestBody;
+use rocket_okapi::request::OpenApiFromData;
 pub use validator::{Validate, ValidationErrors};
 
 ///  Struct used for Request Guards
@@ -286,5 +289,15 @@ impl<'r, T: Validate + FromForm<'r>> FromForm<'r> for Validated<T> {
                     .into()),
             },
         }
+    }
+}
+
+#[rocket::async_trait]
+impl<T> OpenApiFromData<'_> for Validated<Json<T>>
+where
+    T: schemars::JsonSchema + for<'de> rocket::serde::Deserialize<'de> + validator::Validate,
+{
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<RequestBody> {
+        Json::<T>::request_body(gen)
     }
 }

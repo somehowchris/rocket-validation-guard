@@ -16,11 +16,11 @@ description = "Rocket Guards to support validation using validator"
 path = "src/lib.rs"
 
 [dependencies]
-rocket = { version = "0.5.0", default-features = false, features = [
+rocket = { version = "0.5.1", default-features = false, features = [
     "json",
 ] }
 validator = { version = "0.19.0", features = ["derive"] }
-schemars = "0.8.16"
+schemars = "0.8.21"
 rocket_okapi = "0.9.0"
 
 [[example]]
