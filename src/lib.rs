@@ -82,6 +82,7 @@ pub extern crate validator;
 #[macro_use]
 extern crate rocket;
 
+use std::borrow::Cow;
 use rocket::{
     data::{Data, FromData, Outcome as DataOutcome},
     form,
@@ -92,7 +93,11 @@ use rocket::{
     serde::{json::Json, Serialize},
 };
 use std::fmt::Debug;
+use rocket::form::{Form, Options};
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::Parameter;
 pub use validator::{Validate, ValidationErrors};
+use validator::ValidationError;
 
 ///  Struct used for Request Guards
 #[derive(Clone, Debug)]
@@ -184,7 +189,15 @@ impl<'r, D: Validate + rocket::serde::Deserialize<'r>> FromData<'r> for Validate
         let data_outcome = <Json<D> as FromData<'r>>::from_data(req, data).await;
 
         match data_outcome {
-            Outcome::Error((status, err)) => Outcome::Error((status, Err(err))),
+            Outcome::Error((status, err)) => {
+                let mut errors = ValidationErrors::new();
+                
+                #[cfg(feature = "parser_errors")]
+                errors.add("Parser", ValidationError::new("Error").with_message(Cow::from(err.to_string())));
+                
+                req.local_cache(|| CachedValidationErrors(Some(errors)));
+                Outcome::Error((status, Err(err)))
+            },
             Outcome::Forward(err) => Outcome::Forward(err),
             Outcome::Success(data) => match data.validate() {
                 Ok(_) => Outcome::Success(Validated(data)),
@@ -286,5 +299,65 @@ impl<'r, T: Validate + FromForm<'r>> FromForm<'r> for Validated<T> {
                     .into()),
             },
         }
+    }
+}
+
+#[cfg(feature = "rocket_okapi")]
+#[rocket::async_trait]
+impl<T> rocket_okapi::request::OpenApiFromData<'_> for Validated<Json<T>>
+where
+    T: schemars::JsonSchema + for<'de> rocket::serde::Deserialize<'de> + validator::Validate,
+{
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
+        Json::<T>::request_body(gen)
+    }
+}
+
+#[cfg(feature = "rocket_okapi")]
+#[rocket::async_trait]
+impl<'r, T> FromData<'r> for Validated<Form<T>>
+where
+    T: FromForm<'r> + Validate,
+{
+    type Error = Result<ValidationErrors, form::Errors<'r>>;
+
+    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
+        let data_outcome = <Form<T> as FromData<'r>>::from_data(req, data).await;
+
+        match data_outcome {
+            DataOutcome::Error((status, err)) => DataOutcome::Error((status, Err(err))),
+            DataOutcome::Forward(f) => DataOutcome::Forward(f),
+            DataOutcome::Success(form) => {
+                let inner = form.into_inner();
+                match inner.validate() {
+                    Ok(_) => DataOutcome::Success(Validated(rocket::form::Form::from(inner))),
+                    Err(err) => {
+                        req.local_cache(|| CachedValidationErrors(Some(err.to_owned())));
+                        DataOutcome::Error((Status::UnprocessableEntity, Ok(err)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "rocket_okapi")]
+#[rocket::async_trait]
+impl<'r, T> rocket_okapi::request::OpenApiFromData<'r> for Validated<Form<T>>
+where
+    T: schemars::JsonSchema + FromForm<'r> + 'static + validator::Validate,
+{
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
+        Form::<T>::request_body(gen)
+    }
+}
+
+#[cfg(feature = "rocket_okapi")]
+impl<'r, T> rocket_okapi::request::OpenApiFromForm<'r> for Validated<T>
+where
+    T: schemars::JsonSchema + FromForm<'r> + 'static + validator::Validate,
+{
+    fn form_multi_parameter(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<Vec<Parameter>> {
+        T::form_multi_parameter(gen, name, required)
     }
 }

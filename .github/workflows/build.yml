@@ -26,14 +26,14 @@ jobs:
     runs-on: ${{ matrix.config.node }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.2.2
 
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - uses: Swatinem/rust-cache@v2.7.3
+      - uses: Swatinem/rust-cache@v2.7.5
 
       - name: Test Dev
         run: cargo test --all-features --workspace
@@ -89,7 +89,7 @@ jobs:
     runs-on: ${{ matrix.config.node }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.2.2
 
       - uses: docker-practice/actions-setup-docker@master
 

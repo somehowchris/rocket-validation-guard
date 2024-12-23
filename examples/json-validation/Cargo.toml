@@ -3,16 +3,14 @@ name = "json-validation"
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/somehowchris/rocket-validation"
-keywords = ["me"]
-categories = ["me"]
 rust-version = "1.59.0"
 readme = "../.."
 license = "MIT"
-description = "me"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { version = "0.5.0-rc.1", features=["json"] }
-rocket-validation = { path = "../../" }
-validator = "0.16.0"
+rocket = { version = "0.5.1", features=["json"] }
+rocket-validation = { path = "../.." }
+validator = "0.19.0"
+
