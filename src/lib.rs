@@ -93,6 +93,9 @@ use rocket::{
     serde::{json::Json, Serialize},
 };
 use std::fmt::Debug;
+use rocket::form::{Form, Options};
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::Parameter;
 pub use validator::{Validate, ValidationErrors};
 use validator::ValidationError;
 
@@ -346,5 +349,15 @@ where
 {
     fn request_body(gen: &mut rocket_okapi::gen::OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
         form::Form::<T>::request_body(gen)
+    }
+}
+
+#[cfg(feature = "rocket_okapi")]
+impl<'r, T> rocket_okapi::request::OpenApiFromForm<'r> for Validated<T>
+where
+    T: schemars::JsonSchema + FromForm<'r> + 'static + validator::Validate,
+{
+    fn form_multi_parameter(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<Vec<Parameter>> {
+        T::form_multi_parameter(gen, name, required)
     }
 }
