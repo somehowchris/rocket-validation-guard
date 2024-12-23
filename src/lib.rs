@@ -308,21 +308,21 @@ impl<T> rocket_okapi::request::OpenApiFromData<'_> for Validated<Json<T>>
 where
     T: schemars::JsonSchema + for<'de> rocket::serde::Deserialize<'de> + validator::Validate,
 {
-    fn request_body(gen: &mut rocket_okapi::gen::OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
         Json::<T>::request_body(gen)
     }
 }
 
 #[cfg(feature = "rocket_okapi")]
 #[rocket::async_trait]
-impl<'r, T> FromData<'r> for Validated<form::Form<T>>
+impl<'r, T> FromData<'r> for Validated<Form<T>>
 where
     T: FromForm<'r> + Validate,
 {
     type Error = Result<ValidationErrors, form::Errors<'r>>;
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> DataOutcome<'r, Self> {
-        let data_outcome = <form::Form<T> as FromData<'r>>::from_data(req, data).await;
+        let data_outcome = <Form<T> as FromData<'r>>::from_data(req, data).await;
 
         match data_outcome {
             DataOutcome::Error((status, err)) => DataOutcome::Error((status, Err(err))),
@@ -343,12 +343,12 @@ where
 
 #[cfg(feature = "rocket_okapi")]
 #[rocket::async_trait]
-impl<'r, T> rocket_okapi::request::OpenApiFromData<'r> for Validated<form::Form<T>>
+impl<'r, T> rocket_okapi::request::OpenApiFromData<'r> for Validated<Form<T>>
 where
     T: schemars::JsonSchema + FromForm<'r> + 'static + validator::Validate,
 {
-    fn request_body(gen: &mut rocket_okapi::gen::OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
-        form::Form::<T>::request_body(gen)
+    fn request_body(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<rocket_okapi::okapi::openapi3::RequestBody> {
+        Form::<T>::request_body(gen)
     }
 }
 
